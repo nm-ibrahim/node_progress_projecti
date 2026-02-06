@@ -2,6 +2,8 @@ import express from 'express'
 import dotenv from 'dotenv'
 import mysql from 'mysql'
 import bp from 'body-parser'
+import bycrybtjs from 'bcryptjs'
+// import jwt from 'jsonwebtoken'
 
 dotenv.config()
 
@@ -23,8 +25,33 @@ mydb.connect(function(err){
 
 
 app.get('/',function(req,res){
-    res.send('my Server is running')
+    try{
+        res.status(200).send('my server is running')
+    } catch (error){
+        res.status(500).send('internal server error')
+    }
 })
+
+//AUTHENTICATION
+//REGISTER CREATE A USER FOR THE FIRST TIME
+
+app.post("/register",function(req,res){
+    const {username,email,password} = req.body;
+    //check if user is already in the database
+    mydb.query('select * from users where email =?',[email],async(err,result)=>{
+        if(result.length >0){
+            return res.status(500).json({message: 'user already existed',err})
+        }
+        //hash the password
+        const newpasscode = await bycrybtjs.hash(password,10)
+         mydb.query('insert into users (username,email,password) values (?,?,?)', [username,email,newpasscode],(err,result)=>{
+            if(err) throw new Error (err)
+                res.status(201).json({message: 'user created successfully', result})
+        })
+    })
+   
+})
+
 
 // GET all users(students)
 
@@ -45,19 +72,19 @@ app.get('/users/:id', function(req,res){
 
 })
 
-app.post('/users',function(req,res){
-    const {id,name,email} = req.body
-    mydb.query('insert into users (id,name,email) values(?,?,?)',[id,name,email],(err,results)=>{
-        if(err) throw new Error(err)
-        res.json({message: 'Added a user',results})
-    })
+// app.post('/users',function(req,res){
+//     const {id,username,email,password} = req.body
+//     mydb.query('insert into users (id,username,email,password) values(?,?,?,?)',[id,username,email,password],(err,results)=>{
+//         if(err) throw new Error(err)
+//         res.json({message: 'Added a user',results})
+//     })
     
-})
+// })
 app.put('/users/:id',function(req,res){
     const id = req.params.id;
-    const {name,email} = req.body
-    mydb.query('UPDATE users SET name=?,email=? WHERE id =?'
-        ,[name,email,id],(err,results)=>{
+    const {username,email,password} = req.body
+    mydb.query('UPDATE users SET username=?,email=?,password=? WHERE id =?'
+        ,[username,email,password,id],(err,results)=>{
         if(err) throw new Error(err)
         res.json({message: 'updated a user',results})
     })
@@ -71,37 +98,6 @@ app.delete('/users/:id', function(req,res){
         res.json({message: 'delete users ',results})
     })
 
-})
-
-
-app.get('/users/:id', function(req,res){
-    const id = req.params.id
-    mydb.query('select * from users where id = ?',[id],(error,results)=>{
-          if(error) throw new Error(error)
-        res.json({message: 'Added a user',results})
-    })
-})
-
-app.put('/users/:id', function(req,res){
-    const id = req.params.id;
-        const {name,age,salary,isActive} = req.body
-    mydb.query('UPDATE users SET name=?, age=?, salary=?, isActive=? WHERE id =?'
-        ,[name,age,salary,isActive,id],(err,results)=>{
-             if(err) throw new Error(err)
-        res.json({message: 'updated a user',results})
-        })
-})
-
-
-// app.delete
-
-app.delete('/users/:id', function(req,res){
-    const id = req.params.id
-    mydb.query('DELETE from  users where id= ?',[id],(err,results)=>{
-        if(err) throw new Error(err)
-                    res.json({message: 'deleted a user',results})
-
-    })
 })
 
 
